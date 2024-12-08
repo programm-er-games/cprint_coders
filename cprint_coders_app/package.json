@@ -1,0 +1,16 @@
+{
+  "name": "ueps",
+  "version": "2.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.1"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "sqlite-electron": "^3.1.1",
+    "ws": "^8.18.0"
+  }
+}

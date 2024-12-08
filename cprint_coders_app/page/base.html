@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Main</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .brightness-control {
+      margin: 20px 0;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Room Control</h1>
+    <div class="brightness-control">
+      <label for="brightness">Brightness</label>
+      <input type="range" id="brightness" min="0" max="100" value="50" oninput="updateBrightness(this.value)">
+    </div>
+    <button id="mode-button" onclick="toggleMode()">Вручную</button>
+    <p>Способ настройки освещения: <span id="mode-text">Вручную</span></p>
+    <p>Количество людей в комнате: <span id="people-count">0</span></p>
+  </div>
+
+  <script>
+    let isManual = true;
+
+    function updateBrightness(value) {
+      if (isManual) {
+        ipcRenderer.send('set-brightness', value);
+      }
+    }
+
+    function toggleMode() {
+      isManual = !isManual;
+      ipcRenderer.send('toggle-mode');
+      document.getElementById('mode-button').innerText = !isManual ? 'Вручную' : 'Автоматически';
+      document.getElementById('mode-text').innerText = isManual ? 'Вручную' : 'Автоматически';
+    }
+
+    ipcRenderer.on('people-count', (event, count) => {
+      document.getElementById('people-count').innerText = count;
+    });
+  </script>
+</body>
+
+</html>

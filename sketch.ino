@@ -1,145 +1,84 @@
 #include <WiFi.h>
-#include <WebServer.h>
-#include <sqlite3.h>
-#include <SPIFFS.h>
-#include <html_strings.h>
+#include <WebSocketsClient.h>
+#include <NewPing.h>
 
 // Настройки Wi-Fi
-const char* ssid = "Redmi 10C";
-const char* password = "qpwolwhsh";
+const char* ssid = "your-SSID";
+const char* password = "your-PASSWORD";
 
-// Настройки базы данных SQLite
-#define DB_PATH "/spiffs/database.db"
+// Настройки WebSocket
+const char* ws_host = "192.168.1.100"; // Замените на IP вашего сервера (Electron.js)
+const int ws_port = 8080;
+WebSocketsClient webSocket;
 
-// Пины для датчиков и лампочки
-#define LIGHT_SENSOR_PIN 34
-#define PROXIMITY_SENSOR_PIN 35
+// Настройки датчиков и лампы
+#define PHOTORESISTOR_PIN 34
+#define TRIG_PIN 27
+#define ECHO_PIN 26
+#define MAX_DISTANCE 200
 #define LED_PIN 25
 
-// Веб-сервер на ESP32
-WebServer server(80);
+// Инициализация ультразвукового датчика
+NewPing sonar(TRIG_PIN, ECHO_PIN, MAX_DISTANCE);
 
-// Глобальные переменные
-bool isAuthenticated = false;
-sqlite3 *db;
-
-// Настройка SPIFFS для работы с базой данных
-void initSPIFFS() {
-  if (!SPIFFS.begin(true)) {
-    Serial.println("SPIFFS initialization failed!");
-    while (true);
+// Функция для подключения к Wi-Fi
+void connectToWiFi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to Wi-Fi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
   }
-  if (!SPIFFS.exists(DB_PATH)) {
-    createDatabase();
-  }
+  Serial.println("\nWi-Fi connected");
+  Serial.println("IP address: " + WiFi.localIP().toString());
 }
 
-// Создание базы данных SQLite
-void createDatabase() {
-  if (sqlite3_open(DB_PATH, &db) == SQLITE_OK) {
-    const char *sql = "CREATE TABLE IF NOT EXISTS users ("
-                      "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                      "username TEXT NOT NULL, "
-                      "password TEXT NOT NULL);";
-    char *errMsg;
-    if (sqlite3_exec(db, sql, NULL, NULL, &errMsg) != SQLITE_OK) {
-      Serial.printf("SQL error: %s\n", errMsg);
-      sqlite3_free(errMsg);
-    } else {
-      Serial.println("Database and table created");
+// Обработка сообщений WebSocket
+void handleWebSocketMessage(WStype_t type, uint8_t *payload, size_t length) {
+  if (type == WStype_TEXT) {
+    String message = String((char*)payload);
+    Serial.println("Message received: " + message);
 
-      // Добавляем тестового пользователя
-      const char *insert_sql = "INSERT INTO users (username, password) VALUES ('admin', '1234');";
-      sqlite3_exec(db, insert_sql, NULL, NULL, NULL);
+    // Обработка команд
+    if (message.startsWith("SET_LED")) {
+      int brightness = message.substring(8).toInt();
+      analogWrite(LED_PIN, map(brightness, 0, 100, 0, 255));
+      Serial.println("LED brightness set to " + String(brightness) + "%");
     }
-    sqlite3_close(db);
-  } else {
-    Serial.println("Failed to open database");
   }
 }
 
-// Авторизация пользователя
-bool authenticateUser(String username, String password) {
-  if (sqlite3_open(DB_PATH, &db) == SQLITE_OK) {
-    String sql = "SELECT * FROM users WHERE username = '" + username + "' AND password = '" + password + "';";
-    sqlite3_stmt *stmt;
-    bool authenticated = false;
+// Отправка данных о датчиках через WebSocket
+void sendSensorData() {
+  int lightLevel = analogRead(PHOTORESISTOR_PIN);
+  int distance = sonar.ping_cm();
 
-    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, NULL) == SQLITE_OK) {
-      if (sqlite3_step(stmt) == SQLITE_ROW) {
-        authenticated = true;
-      }
-    }
-    sqlite3_finalize(stmt);
-    sqlite3_close(db);
-    return authenticated;
-  }
-  return false;
-}
-
-// Главная страница
-void handleMainPage() {
-  server.send(200, "text/html", main_page);
-}
-
-// Страница авторизации
-void handleLoginPage() {
-  server.send(200, "text/html", login);
-}
-
-// Логин
-void handleLogin() {
-  if (server.hasArg("username") && server.hasArg("password")) {
-    String username = server.arg("username");
-    String password = server.arg("password");
-
-    if (authenticateUser(username, password)) {
-      isAuthenticated = true;
-      server.sendHeader("Location", "/main");
-      server.send(302);
-    } else {
-      isAuthenticated = false;
-      server.send(403, "text/plain", "Invalid credentials");
-    }
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-  }
-}
-
-// Установка яркости лампочки
-void handleSetBrightness() {
-  if (!isAuthenticated) {
-    server.send(403, "text/plain", "Unauthorized");
-    return;
-  }
-  if (server.hasArg("brightness")) {
-    int brightness = server.arg("brightness").toInt();
-    int pwmValue = map(brightness, 0, 100, 0, 255);
-    analogWrite(LED_PIN, pwmValue);
-    server.send(200, "text/plain", "Brightness updated");
-  } else {
-    server.send(400, "text/plain", "Bad Request");
-  }
+  String sensorData = "{\"lightLevel\": " + String(lightLevel) + 
+                      ", \"distance\": " + String(distance) + "}";
+  webSocket.sendTXT(sensorData);
+  Serial.println("Sent data: " + sensorData);
 }
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-  Serial.println("\nWi-Fi connected");
-
-  initSPIFFS();
-
-  server.on("/", handleLoginPage);
-  server.on("/login", handleLogin);
-  server.on("/main", handleMainPage);
-  server.on("/setBrightness", handleSetBrightness);
-
   pinMode(LED_PIN, OUTPUT);
 
-  server.begin();
+  connectToWiFi();
+
+  // Настройка WebSocket
+  webSocket.begin(ws_host, ws_port, "/");
+  webSocket.onEvent(handleWebSocketMessage);
+  webSocket.setReconnectInterval(5000); // Попытка переподключения каждые 5 секунд
+
+  Serial.println("WebSocket initialized");
 }
 
 void loop() {
-  server.handleClient();
+  webSocket.loop(); // Обработка WebSocket событий
+
+  static unsigned long lastSendTime = 0;
+  if (millis() - lastSendTime > 2000) { // Отправка данных каждые 2 секунды
+    sendSensorData();
+    lastSendTime = millis();
+  }
 }
