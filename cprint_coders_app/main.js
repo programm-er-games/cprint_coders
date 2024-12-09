@@ -111,7 +111,7 @@ wss.on('connection', (ws) => {
         });
         ipcMain.handle("set_isManual", (event, value) => {
             ws.send(JSON.stringify({ command: 'IS_MANUAL', value: value === false ? 0 : 1 }));
-        })
+        });
     });
 });
 

@@ -9,7 +9,7 @@ body {
     background-color: black;
     color: white;
     font-family: "Jura";
-    background: linear-gradient(rgba(80, 0, 0, 0.5), rgba(80, 0, 0, 0.5)), url("img/8.jpg");
+    background: linear-gradient(rgba(80, 0, 0, 0.5), rgba(80, 0, 0, 0.5)), url("/image/8.jpg");
     background-position: inherit;
     background-repeat: repeat;
 }
