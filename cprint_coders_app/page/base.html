@@ -5,60 +5,80 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Main</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      text-align: center;
-    }
-
-    .brightness-control {
-      margin: 20px 0;
-    }
-
-    button {
-      padding: 10px 20px;
-      margin-top: 20px;
-    }
-  </style>
+  <link rel="stylesheet" href="../styles/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;0,900;1,300;1,400;1,700;1,900&display=swap"
+    rel="stylesheet">
+  <link rel="icon" type="image/png" href="../image/favicon-96x96.png" sizes="96x96" />
+  <link rel="icon" type="image/svg+xml" href="../image/favicon.svg" />
+  <link rel="shortcut icon" href="../image/favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../image/apple-touch-icon.png" />
+  <link rel="manifest" href="../image/site.webmanifest" />
 </head>
 
-<body>
+<body claass="body_base">
+  <div class="Logo">
+    <img src="../image/Logo.png" alt="#" class="Logo_img">
+    <button class="button_exit" onclick="window.electronAPI.quitApp();">Выход</button>
+  </div>
   <div class="container">
-    <h1>Room Control</h1>
-    <div class="brightness-control">
-      <label for="brightness">Brightness</label>
-      <input type="range" id="brightness" min="0" max="100" value="50" oninput="updateBrightness(this.value)">
+    <h1>Контроль освещения в комнате</h1>
+    <br>
+    <h2>Яркость лампы:</h2>
+    <div class="brightness-control" id="brightness-control" style="display: block;">
+      <label for="brightness" id="brightness">0%</label>
+      <input type="range" class="range" min="0" max="100" value="50" oninput="updateBrightness(this.value)">
+      <label for="brightness_100" id="brightness_100">100%</label>
     </div>
-    <button id="mode-button" onclick="toggleMode()">Вручную</button>
-    <p>Способ настройки освещения: <span id="mode-text">Вручную</span></p>
-    <p>Количество людей в комнате: <span id="people-count">0</span></p>
+    <div id="brightness-value" style="display: none;">
+      <p id="b_value">-1</p>
+    </div>
+    <div class="light-value">
+      <h2>Освещённость комнаты:</h2>
+      <p id="l_value">-1</p>
+    </div>
+    <p class="addit">Способ настройки освещения: <span id="mode-text">Вручную</span></p>
+    <button id="mode-button" onclick="toggleMode()">Автоматически</button>
+    <p class="addit">Количество людей в комнате: <span id="people-count">0</span></p>
   </div>
 
   <script>
+    const counter = document.getElementById("people-count");
+    const b_value = document.getElementById("brightness-value");
+    const control = document.getElementById("brightness-control");
+    let interval_id;
     let isManual = true;
 
     function updateBrightness(value) {
       if (isManual) {
-        ipcRenderer.send('set-brightness', value);
+        window.ws_api.sendMessage();
       }
     }
 
     function toggleMode() {
       isManual = !isManual;
-      ipcRenderer.send('toggle-mode');
       document.getElementById('mode-button').innerText = !isManual ? 'Вручную' : 'Автоматически';
       document.getElementById('mode-text').innerText = isManual ? 'Вручную' : 'Автоматически';
+      if (!isManual) {
+        interval_id = setInterval(() => {
+          document.getElementById("b_value").innerText = window.api.get_bright();
+        }, 500);
+        control.style.display = 'none';
+        b_value.style.display = 'block';
+      }
+      else {
+        clearInterval(interval_id);
+        control.style.display = 'block';
+        b_value.style.display = 'none';
+      }
     }
 
-    ipcRenderer.on('people-count', (event, count) => {
-      document.getElementById('people-count').innerText = count;
-    });
+    setInterval(() => {
+      document.getElementById('people-count').innerText = window.api.get_people();
+      document.getElementById("l_value").innerText = window.api.get_light();
+    }, 500);
   </script>
 </body>
 

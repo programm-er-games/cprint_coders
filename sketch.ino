@@ -11,6 +11,8 @@ const char* ws_host = "192.168.1.100"; // Замените на IP вашего 
 const int ws_port = 8080;
 WebSocketsClient webSocket;
 
+bool isManual = true;
+
 // Настройки датчиков и лампы
 #define PHOTORESISTOR_PIN 34
 #define TRIG_PIN 27
@@ -42,8 +44,11 @@ void handleWebSocketMessage(WStype_t type, uint8_t *payload, size_t length) {
     // Обработка команд
     if (message.startsWith("SET_LED")) {
       int brightness = message.substring(8).toInt();
-      analogWrite(LED_PIN, map(brightness, 0, 100, 0, 255));
+      if (isManual) analogWrite(LED_PIN, map(brightness, 0, 100, 0, 255));
       Serial.println("LED brightness set to " + String(brightness) + "%");
+    }
+    else if (message.startsWith("IS_MANUAL")) {
+      isManual = message.substring(8).toInt() == 1 ? true : false;
     }
   }
 }
@@ -52,6 +57,7 @@ void handleWebSocketMessage(WStype_t type, uint8_t *payload, size_t length) {
 void sendSensorData() {
   int lightLevel = analogRead(PHOTORESISTOR_PIN);
   int distance = sonar.ping_cm();
+  if (!isManual) analogWrite(LED_PIN, 255 - lightLevel);
 
   String sensorData = "{\"lightLevel\": " + String(lightLevel) + 
                       ", \"distance\": " + String(distance) + "}";

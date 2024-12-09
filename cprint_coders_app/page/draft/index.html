@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <style>
+    body { display: flex; justify-content: center; align-items: center; height: 100vh; font-family: Arial, sans-serif; background-color: #f5f5f5; }
+    .login-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); width: 300px; text-align: center; }
+    .login-container h1 { font-size: 24px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 15px; text-align: left; }
+    .form-group label { display: block; margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+    .form-group button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .form-group button:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h1>Login</h1>
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="Enter your username">
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter your password">
+    </div>
+    <div class="form-group">
+      <button onclick="login()">Login</button>
+    </div>
+    <div id="error-message" style="display: none;">Invalid credentials</div>
+  </div>
+
+  <script>
+    async function login() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      const err_msg = document.getElementById('error-message');
+
+      const success = await window.db_api.login(username, password);
+      if (!success) {
+        err_msg.style.color = 'red';
+        err_msg.style.display = 'block';
+        err_msg.innerText = "Неверное имя пользователя или пароль!";
+      }
+      else {
+        err_msg.style.color = 'green';
+        err_msg.style.display = 'block';
+        err_msg.innerText = "Успешный вход";
+        setTimeout(() => {
+          window.location.href = "/base.html";
+        }, 2000);
+      }
+    }
+  </script>
+</body>
+</html>
