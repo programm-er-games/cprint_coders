@@ -106,7 +106,8 @@ wss.on('connection', (ws) => {
             console.error('Invalid message received:', message);
             ws.send(JSON.stringify({ status: 'error', message: 'Invalid data format' }));
         }
-        ipcMain.handle("set_bright", (event, value) => {
+        ipcMain.handle("set_bright", async (event, value) => {
+            await sqlite3.executeQuery("INSERT INTO settings VALUES (?);", [value]);
             ws.send(JSON.stringify({ command: 'SET_LED', value: value }));
         });
         ipcMain.handle("set_isManual", (event, value) => {
